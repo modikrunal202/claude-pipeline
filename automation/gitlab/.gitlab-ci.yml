@@ -1,0 +1,45 @@
+# GitLab CI — equivalent pipeline to automation/github/ci.yml + deploy.yml.
+# Calls the same .claude/hooks/ scripts so behavior is identical across CI providers.
+# Stack-agnostic: set CLAUDE_*_CMD as CI/CD variables in project settings.
+
+stages: [validate, test, security, build, deploy]
+
+variables:
+  GIT_DEPTH: "50"
+
+validate:
+  stage: validate
+  script:
+    - ${CLAUDE_LINT_CMD:-echo 'no lint configured'}
+    - ${CLAUDE_TYPECHECK_CMD:-echo 'no typecheck configured'}
+
+test:
+  stage: test
+  script:
+    - ${CLAUDE_TEST_CMD:-echo 'no tests configured'} | tee .claude-test-output.txt
+  after_script:
+    - if [ "$CI_JOB_STATUS" = "failed" ]; then bash .claude/hooks/on-test-fail.sh .claude-test-output.txt; fi
+
+security:
+  # MANDATORY gate.
+  stage: security
+  script:
+    - bash .claude/hooks/vuln-scan.sh
+
+build:
+  stage: build
+  script:
+    - ${CLAUDE_BUILD_CMD:-echo 'no build configured'}
+
+deploy:
+  stage: deploy
+  when: manual                 # 🔒 human approval gate — requires a maintainer to trigger
+  environment:
+    name: production
+  variables:
+    DEPLOY_APPROVED_BY: "$GITLAB_USER_LOGIN"
+    TESTS_GREEN: "true"
+  script:
+    - bash .claude/hooks/pre-deploy.sh production
+    - ${CLAUDE_DEPLOY_CMD:-echo 'deploy'}
+    - bash .claude/hooks/post-deploy.sh production "$HEALTHCHECK_URL"

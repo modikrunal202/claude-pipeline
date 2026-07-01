@@ -1,0 +1,18 @@
+# pre-commit framework config (https://pre-commit.com). Copy to .pre-commit-config.yaml.
+# Wires the pipeline's local lifecycle hook so secrets/lint/typecheck run before every commit.
+# Install: pipx install pre-commit && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: claude-pre-commit
+        name: Claude pipeline pre-commit (secret scan + lint + typecheck)
+        entry: bash .claude/hooks/pre-commit.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # Belt-and-suspenders secret detection (independent of the hook's own scan).
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks

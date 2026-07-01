@@ -1,0 +1,61 @@
+# GitHub Actions — CI pipeline for the Claude SDLC pipeline.
+# Maps SDLC verify stages to jobs and CALLS the pipeline hooks in .claude/hooks/.
+# Stack-agnostic: the `setup` job derives commands from repo env / CLAUDE.md.
+# Place at .github/workflows/ci.yml in your project.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least-privilege token by default.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Override these per project (or export from a setup step that reads CLAUDE.md).
+  CLAUDE_LINT_CMD: ${{ vars.CLAUDE_LINT_CMD }}
+  CLAUDE_TYPECHECK_CMD: ${{ vars.CLAUDE_TYPECHECK_CMD }}
+  CLAUDE_TEST_CMD: ${{ vars.CLAUDE_TEST_CMD }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        run: ${CLAUDE_LINT_CMD:-echo 'no lint configured'}
+      - name: Typecheck
+        run: ${CLAUDE_TYPECHECK_CMD:-echo 'no typecheck configured'}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        id: tests
+        run: ${CLAUDE_TEST_CMD:-echo 'no tests configured'} | tee .claude-test-output.txt
+      - name: On failure — capture for bug-investigator
+        if: failure()
+        run: bash .claude/hooks/on-test-fail.sh .claude-test-output.txt
+
+  security:
+    # MANDATORY gate — blocks the PR on HIGH/CRITICAL findings.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency + static analysis (vuln-scan hook)
+        run: bash .claude/hooks/vuln-scan.sh
+
+  build:
+    needs: [validate, test, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build artifact
+        run: ${{ vars.CLAUDE_BUILD_CMD || 'echo no build configured' }}

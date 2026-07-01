@@ -1,0 +1,50 @@
+# GitHub Actions — deploy pipeline with a HUMAN 🔒 approval gate.
+# The `production` environment must require reviewers in repo settings — that's the 🔒 gate.
+# Calls pre-deploy.sh (gates) and post-deploy.sh (healthcheck/watch). Canary → promote.
+# Place at .github/workflows/deploy.yml.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version/tag to deploy
+        required: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  gate:
+    # Pre-flight release gates. Requires tests green + clean scan + recorded approval.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pre-deploy gates
+        env:
+          DEPLOY_APPROVED_BY: ${{ github.actor }}
+          TESTS_GREEN: "true"            # set from the upstream ci run status in real use
+        run: bash .claude/hooks/pre-deploy.sh production
+
+  canary:
+    needs: gate
+    environment: production-canary       # optional lighter gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy canary (small % of traffic)
+        run: ${{ vars.CLAUDE_DEPLOY_CANARY_CMD || 'echo deploy canary' }}
+      - name: Post-deploy healthcheck + watch
+        run: bash .claude/hooks/post-deploy.sh production-canary "${{ vars.HEALTHCHECK_URL }}"
+
+  promote:
+    needs: canary
+    environment: production              # 🔒 REQUIRES manual reviewer approval (configure in repo settings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Promote to 100%
+        run: ${{ vars.CLAUDE_DEPLOY_PROMOTE_CMD || 'echo promote' }}
+      - name: Post-deploy healthcheck + watch
+        run: bash .claude/hooks/post-deploy.sh production "${{ vars.HEALTHCHECK_URL }}"

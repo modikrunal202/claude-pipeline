@@ -1,0 +1,27 @@
+# Claude Code local state
+.claude/settings.local.json
+.claude/logs/
+.claude/.cache/
+
+# Secrets — never commit
+.env
+.env.*
+*.pem
+*.key
+*_rsa
+credentials
+secrets/
+
+# Common build/dep artifacts (stack-agnostic superset)
+node_modules/
+dist/
+build/
+target/
+bin/
+obj/
+__pycache__/
+*.pyc
+vendor/
+.venv/
+coverage/
+.DS_Store
