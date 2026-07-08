@@ -11,10 +11,13 @@
 
 set -uo pipefail
 
-LOG_DIR="${CLAUDE_HOOK_LOG_DIR:-${CLAUDE_PROJECT_DIR:-.}/.claude/logs}"
-mkdir -p "$LOG_DIR" 2>/dev/null || true
+# Logging is opt-in: set CLAUDE_HOOK_LOG_DIR to an absolute path to enable it.
+# By default no log directory or file is created.
+LOG_DIR="${CLAUDE_HOOK_LOG_DIR:-}"
+if [ -n "$LOG_DIR" ]; then mkdir -p "$LOG_DIR" 2>/dev/null || true; fi
 
 log() { # log <hook-name> <message>
+  [ -n "$LOG_DIR" ] || return 0
   printf '%s [%s] %s\n' "$(date -u +%FT%TZ 2>/dev/null || echo now)" "$1" "$2" >> "$LOG_DIR/hooks.log" 2>/dev/null || true
 }
 
