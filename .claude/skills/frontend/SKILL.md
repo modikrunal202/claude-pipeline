@@ -13,7 +13,7 @@ Build UI that is correct, accessible, and fast: components that compose cleanly,
 - Pairs with `api-design` (the contract it consumes), `testing`, `accessibility` (accessibility-auditor), and `performance` (performance-engineer).
 
 ## Inputs
-- Designs/mockups and interaction specs; content and states (loading, empty, error, partial).
+- Designs/mockups and interaction specs; content and states (loading, empty, error, partial). **If none is supplied**, fall back to `templates/design-baseline.md` (see step 0 below) rather than free-forming visual decisions.
 - The API contract (endpoints, shapes, error formats, pagination) from `api-design`.
 - Non-functional targets: Core Web Vitals budgets (LCP, INP, CLS), bundle-size budget, target devices/networks.
 - Existing conventions: framework, component library, state/data-fetching libraries, styling approach.
@@ -26,6 +26,7 @@ Build UI that is correct, accessible, and fast: components that compose cleanly,
 - A bundle within budget: code-split, lazy-loaded, tree-shaken; assets optimized.
 
 ## Procedure
+0. **Resolve design input before writing any UI code.** Check, in order: (a) a design doc/mockup/Figma reference passed for this task, (b) an existing design-tokens file or component library already in the repo (theme config, `tailwind.config.*`, a `components/ui` folder, Storybook), (c) neither. If (c), apply `templates/design-baseline.md` — a concrete default color/type/spacing/component system — instead of inventing ad hoc styles per component. State explicitly in the handoff whenever the baseline was used in place of a real design doc, so reviewers know to check it against brand/product expectations later.
 1. **Break the UI into components by responsibility**, not by visual coincidence. Prefer small, composable, presentational components (data in via props, changes out via callbacks) wrapped by a few container components that own state and side effects. This keeps the leaves reusable and testable.
 2. **Classify state before writing it.** Distinguish: (a) **server state** — data owned by the backend, fetched and cached (use a data-fetching/cache library; treat it as a cache, not local state); (b) **UI state** — transient, local to a component (open/closed, hover); (c) **URL state** — anything that should survive refresh/share (filters, tab, page); (d) **global client state** — genuinely cross-cutting (theme, auth). Put each in exactly one place. Lift state only as high as needed; colocate the rest.
 3. **Never store derived data in state.** Compute it during render (memoize only if measured to be expensive). Duplicated/derived state is the #1 source of UI inconsistency bugs.
